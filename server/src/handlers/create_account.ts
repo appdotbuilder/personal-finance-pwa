@@ -1,22 +1,34 @@
+import { db } from '../db';
+import { accountsTable } from '../db/schema';
 import { type CreateAccountInput, type Account } from '../schema';
 
-export async function createAccount(input: CreateAccountInput, userId: string): Promise<Account> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new financial account (checking, savings, credit, etc.).
-    // It should set the initial balance and mark as default if specified.
-    return Promise.resolve({
-        id: '00000000-0000-0000-0000-000000000000', // Placeholder ID
+export const createAccount = async (input: CreateAccountInput, userId: string): Promise<Account> => {
+  try {
+    // Insert account record
+    const result = await db.insert(accountsTable)
+      .values({
         user_id: userId,
         name: input.name,
         account_type: input.account_type,
-        balance: input.initial_balance || 0,
-        initial_balance: input.initial_balance || 0,
+        balance: input.initial_balance?.toString() || '0', // Convert number to string for numeric column
+        initial_balance: input.initial_balance?.toString() || '0', // Convert number to string for numeric column
         currency: input.currency || 'IDR',
         color: input.color || null,
         icon: input.icon || null,
-        is_default: input.is_default || false,
-        created_at: new Date(),
-        updated_at: new Date(),
-        deleted_at: null
-    } as Account);
-}
+        is_default: input.is_default || false
+      })
+      .returning()
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    const account = result[0];
+    return {
+      ...account,
+      balance: parseFloat(account.balance), // Convert string back to number
+      initial_balance: parseFloat(account.initial_balance) // Convert string back to number
+    };
+  } catch (error) {
+    console.error('Account creation failed:', error);
+    throw error;
+  }
+};

@@ -1,8 +1,22 @@
+import { db } from '../db';
+import { profilesTable } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { type Profile } from '../schema';
 
-export async function getProfile(userId: string): Promise<Profile | null> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching the user's profile information from the database.
-    // It should return null if the profile doesn't exist.
-    return Promise.resolve(null);
-}
+export const getProfile = async (userId: string): Promise<Profile | null> => {
+  try {
+    const results = await db.select()
+      .from(profilesTable)
+      .where(eq(profilesTable.user_id, userId))
+      .execute();
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    return results[0];
+  } catch (error) {
+    console.error('Profile retrieval failed:', error);
+    throw error;
+  }
+};

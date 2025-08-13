@@ -1,19 +1,58 @@
+import { db } from '../db';
+import { profilesTable } from '../db/schema';
 import { type UpdateProfileInput, type Profile } from '../schema';
+import { eq, and } from 'drizzle-orm';
 
-export async function updateProfile(input: UpdateProfileInput, userId: string): Promise<Profile> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating the user's profile information.
-    // It should validate that the profile belongs to the authenticated user and update only provided fields.
-    return Promise.resolve({
-        id: input.id,
-        user_id: userId,
-        display_name: input.display_name || 'Updated Name',
-        email: 'updated@example.com',
-        currency: input.currency || 'IDR',
-        locale: input.locale || 'id-ID',
-        timezone: input.timezone || 'Asia/Jakarta',
-        created_at: new Date(),
-        updated_at: new Date(),
-        deleted_at: null
-    } as Profile);
-}
+export const updateProfile = async (input: UpdateProfileInput, userId: string): Promise<Profile> => {
+  try {
+    // First verify the profile exists and belongs to the user
+    const existingProfiles = await db.select()
+      .from(profilesTable)
+      .where(and(
+        eq(profilesTable.id, input.id),
+        eq(profilesTable.user_id, userId)
+      ))
+      .execute();
+
+    if (existingProfiles.length === 0) {
+      throw new Error('Profile not found or access denied');
+    }
+
+    // Build update values with only provided fields
+    const updateValues: any = {
+      updated_at: new Date()
+    };
+
+    if (input.display_name !== undefined) {
+      updateValues.display_name = input.display_name;
+    }
+    if (input.currency !== undefined) {
+      updateValues.currency = input.currency;
+    }
+    if (input.locale !== undefined) {
+      updateValues.locale = input.locale;
+    }
+    if (input.timezone !== undefined) {
+      updateValues.timezone = input.timezone;
+    }
+
+    // Update the profile
+    const result = await db.update(profilesTable)
+      .set(updateValues)
+      .where(and(
+        eq(profilesTable.id, input.id),
+        eq(profilesTable.user_id, userId)
+      ))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error('Profile update failed');
+    }
+
+    return result[0];
+  } catch (error) {
+    console.error('Profile update failed:', error);
+    throw error;
+  }
+};
